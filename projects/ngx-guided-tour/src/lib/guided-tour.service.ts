@@ -1,10 +1,15 @@
 import { debounceTime } from 'rxjs/operators';
 import { ErrorHandler, Inject, Injectable } from '@angular/core';
 import { Observable, Subject, fromEvent } from 'rxjs';
-import { GuidedTour, TourStep, Orientation, OrientationConfiguration } from './guided-tour.constants';
+import {
+    GuidedTour,
+    TourStep,
+    Orientation,
+    OrientationConfiguration
+} from './guided-tour.constants';
 import { cloneDeep } from 'lodash';
-import { DOCUMENT } from "@angular/common";
-import { WindowRefService } from "./windowref.service";
+import { DOCUMENT } from '@angular/common';
+import { WindowRefService } from './windowref.service';
 
 @Injectable()
 export class GuidedTourService {
@@ -27,22 +32,31 @@ export class GuidedTourService {
         this.guidedTourCurrentStepStream = this._guidedTourCurrentStepSubject.asObservable();
         this.guidedTourOrbShowingStream = this._guidedTourOrbShowingSubject.asObservable();
 
-        fromEvent(this.windowRef.nativeWindow, 'resize').pipe(debounceTime(200)).subscribe(() => {
-            if (this._currentTour && this._currentTourStepIndex > -1) {
-                if (this._currentTour.minimumScreenSize && this._currentTour.minimumScreenSize >= this.windowRef.nativeWindow.innerWidth) {
-                    this._onResizeMessage = true;
-                    const dialog = this._currentTour.resizeDialog || {
-                        title: 'Please resize',
-                        content: 'You have resized the tour to a size that is too small to continue. Please resize the browser to a larger size to continue the tour or close the tour.'
-                    };
+        fromEvent(this.windowRef.nativeWindow, 'resize')
+            .pipe(debounceTime(200))
+            .subscribe(() => {
+                if (this._currentTour && this._currentTourStepIndex > -1) {
+                    if (
+                        this._currentTour.minimumScreenSize &&
+                        this._currentTour.minimumScreenSize >=
+                            this.windowRef.nativeWindow.innerWidth
+                    ) {
+                        this._onResizeMessage = true;
+                        const dialog = this._currentTour.resizeDialog || {
+                            title: 'Please resize',
+                            content:
+                                'You have resized the tour to a size that is too small to continue. Please resize the browser to a larger size to continue the tour or close the tour.'
+                        };
 
-                    this._guidedTourCurrentStepSubject.next(dialog);
-                } else {
-                    this._onResizeMessage = false;
-                    this._guidedTourCurrentStepSubject.next(this.getPreparedTourStep(this._currentTourStepIndex));
+                        this._guidedTourCurrentStepSubject.next(dialog);
+                    } else {
+                        this._onResizeMessage = false;
+                        this._guidedTourCurrentStepSubject.next(
+                            this.getPreparedTourStep(this._currentTourStepIndex)
+                        );
+                    }
                 }
-            }
-        });
+            });
     }
 
     public nextStep(): void {
@@ -57,14 +71,18 @@ export class GuidedTourService {
                 // Usually an action is opening something so we need to give it time to render.
                 setTimeout(() => {
                     if (this._checkSelectorValidity()) {
-                        this._guidedTourCurrentStepSubject.next(this.getPreparedTourStep(this._currentTourStepIndex));
+                        this._guidedTourCurrentStepSubject.next(
+                            this.getPreparedTourStep(this._currentTourStepIndex)
+                        );
                     } else {
                         this.nextStep();
                     }
                 });
             } else {
                 if (this._checkSelectorValidity()) {
-                    this._guidedTourCurrentStepSubject.next(this.getPreparedTourStep(this._currentTourStepIndex));
+                    this._guidedTourCurrentStepSubject.next(
+                        this.getPreparedTourStep(this._currentTourStepIndex)
+                    );
                 } else {
                     this.nextStep();
                 }
@@ -88,14 +106,18 @@ export class GuidedTourService {
                 this._currentTour.steps[this._currentTourStepIndex].action();
                 setTimeout(() => {
                     if (this._checkSelectorValidity()) {
-                        this._guidedTourCurrentStepSubject.next(this.getPreparedTourStep(this._currentTourStepIndex));
+                        this._guidedTourCurrentStepSubject.next(
+                            this.getPreparedTourStep(this._currentTourStepIndex)
+                        );
                     } else {
                         this.backStep();
                     }
                 });
             } else {
                 if (this._checkSelectorValidity()) {
-                    this._guidedTourCurrentStepSubject.next(this.getPreparedTourStep(this._currentTourStepIndex));
+                    this._guidedTourCurrentStepSubject.next(
+                        this.getPreparedTourStep(this._currentTourStepIndex)
+                    );
                 } else {
                     this.backStep();
                 }
@@ -121,14 +143,18 @@ export class GuidedTourService {
 
     public startTour(tour: GuidedTour): void {
         this._currentTour = cloneDeep(tour);
-        this._currentTour.steps = this._currentTour.steps.filter(step => !step.skipStep);
+        this._currentTour.steps = this._currentTour.steps
+            .filter((step) => !step.skipStep)
+            .filter((step) => {
+                return !!this.dom.querySelector(step.selector);
+            });
         this._currentTourStepIndex = 0;
         this._setFirstAndLast();
         this._guidedTourOrbShowingSubject.next(this._currentTour.useOrb);
         if (
-            this._currentTour.steps.length > 0
-            && (!this._currentTour.minimumScreenSize
-                || (this.windowRef.nativeWindow.innerWidth >= this._currentTour.minimumScreenSize))
+            this._currentTour.steps.length > 0 &&
+            (!this._currentTour.minimumScreenSize ||
+                this.windowRef.nativeWindow.innerWidth >= this._currentTour.minimumScreenSize)
         ) {
             if (!this._currentTour.useOrb) {
                 this.dom.body.classList.add('tour-open');
@@ -137,7 +163,9 @@ export class GuidedTourService {
                 this._currentTour.steps[this._currentTourStepIndex].action();
             }
             if (this._checkSelectorValidity()) {
-                this._guidedTourCurrentStepSubject.next(this.getPreparedTourStep(this._currentTourStepIndex));
+                this._guidedTourCurrentStepSubject.next(
+                    this.getPreparedTourStep(this._currentTourStepIndex)
+                );
             } else {
                 this.nextStep();
             }
@@ -150,17 +178,25 @@ export class GuidedTourService {
     }
 
     private _setFirstAndLast(): void {
-        this._onLastStep = (this._currentTour.steps.length - 1) === this._currentTourStepIndex;
+        this._onLastStep = this._currentTour.steps.length - 1 === this._currentTourStepIndex;
         this._onFirstStep = this._currentTourStepIndex === 0;
     }
 
     private _checkSelectorValidity(): boolean {
         if (this._currentTour.steps[this._currentTourStepIndex].selector) {
-            const selectedElement = this.dom.querySelector(this._currentTour.steps[this._currentTourStepIndex].selector);
+            const selectedElement = this.dom.querySelector(
+                this._currentTour.steps[this._currentTourStepIndex].selector
+            );
             if (!selectedElement) {
                 this.errorHandler.handleError(
                     // If error handler is configured this should not block the browser.
-                    new Error(`Error finding selector ${this._currentTour.steps[this._currentTourStepIndex].selector} on step ${this._currentTourStepIndex + 1} during guided tour: ${this._currentTour.tourId}`)
+                    new Error(
+                        `Error finding selector ${
+                            this._currentTour.steps[this._currentTourStepIndex].selector
+                        } on step ${this._currentTourStepIndex + 1} during guided tour: ${
+                            this._currentTour.tourId
+                        }`
+                    )
                 );
                 return false;
             }
@@ -199,24 +235,29 @@ export class GuidedTourService {
     private setTourOrientation(step: TourStep): TourStep {
         const convertedStep = cloneDeep(step);
         if (
-            convertedStep.orientation
-            && !(typeof convertedStep.orientation === 'string')
-            && (convertedStep.orientation as OrientationConfiguration[]).length
+            convertedStep.orientation &&
+            !(typeof convertedStep.orientation === 'string') &&
+            (convertedStep.orientation as OrientationConfiguration[]).length
         ) {
-            (convertedStep.orientation as OrientationConfiguration[]).sort((a: OrientationConfiguration, b: OrientationConfiguration) => {
-                if (!b.maximumSize) {
-                    return 1;
+            (convertedStep.orientation as OrientationConfiguration[]).sort(
+                (a: OrientationConfiguration, b: OrientationConfiguration) => {
+                    if (!b.maximumSize) {
+                        return 1;
+                    }
+                    if (!a.maximumSize) {
+                        return -1;
+                    }
+                    return b.maximumSize - a.maximumSize;
                 }
-                if (!a.maximumSize) {
-                    return -1;
-                }
-                return b.maximumSize - a.maximumSize;
-            });
+            );
 
             let currentOrientation: Orientation = Orientation.Top;
             (convertedStep.orientation as OrientationConfiguration[]).forEach(
                 (orientationConfig: OrientationConfiguration) => {
-                    if (!orientationConfig.maximumSize || this.windowRef.nativeWindow.innerWidth <= orientationConfig.maximumSize) {
+                    if (
+                        !orientationConfig.maximumSize ||
+                        this.windowRef.nativeWindow.innerWidth <= orientationConfig.maximumSize
+                    ) {
                         currentOrientation = orientationConfig.orientationDirection;
                     }
                 }
